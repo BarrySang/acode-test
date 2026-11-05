@@ -1,0 +1,632 @@
+================================================================================
+FILE: src/App.vue
+================================================================================
+
+<script setup>
+import { ref, computed } from 'vue'
+import BookCard from './components/BookCard.vue'
+import { books } from './data/books.js'
+
+const search = ref('')
+const activeGenre = ref('All')
+const readIds = ref(new Set())
+
+const genres = computed(() => {
+  const set = new Set(books.map((b) => b.genre))
+  return ['All', ...Array.from(set).sort()]
+})
+
+const filteredBooks = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  return books.filter((b) => {
+    const matchesGenre =
+      activeGenre.value === 'All' || b.genre === activeGenre.value
+    const matchesSearch =
+      q === '' ||
+      b.title.toLowerCase().includes(q) ||
+      b.author.toLowerCase().includes(q)
+    return matchesGenre && matchesSearch
+  })
+})
+
+const readCount = computed(() => readIds.value.size)
+
+const totalPagesRead = computed(() =>
+  books
+    .filter((b) => readIds.value.has(b.id))
+    .reduce((sum, b) => sum + b.pages, 0)
+)
+
+function toggleRead(id) {
+  const next = new Set(readIds.value)
+  if (next.has(id)) {
+    next.delete(id)
+  } else {
+    next.add(id)
+  }
+  readIds.value = next
+}
+
+function clearFilters() {
+  search.value = ''
+  activeGenre.value = 'All'
+}
+</script>
+
+<template>
+  <header class="site-header">
+    <p class="eyebrow">My Reading List</p>
+    <h1>The Bookshelf</h1>
+    <p class="tagline">
+      A small collection of classics and modern favourites. Tap a book to mark
+      it as read.
+    </p>
+
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-value">{{ books.length }}</span>
+        <span class="stat-label">Books</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ readCount }}</span>
+        <span class="stat-label">Read</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ totalPagesRead.toLocaleString() }}</span>
+        <span class="stat-label">Pages read</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="controls">
+    <input
+      v-model="search"
+      type="search"
+      class="search"
+      placeholder="Search by title or author"
+      aria-label="Search books"
+    />
+    <div class="genres" role="group" aria-label="Filter by genre">
+      <button
+        v-for="genre in genres"
+        :key="genre"
+        type="button"
+        class="chip"
+        :class="{ active: activeGenre === genre }"
+        @click="activeGenre = genre"
+      >
+        {{ genre }}
+      </button>
+    </div>
+  </section>
+
+  <main class="shelf">
+    <div v-if="filteredBooks.length" class="grid">
+      <BookCard
+        v-for="book in filteredBooks"
+        :key="book.id"
+        :book="book"
+        :is-read="readIds.has(book.id)"
+        @toggle-read="toggleRead(book.id)"
+      />
+    </div>
+
+    <div v-else class="empty">
+      <p>No books match your search.</p>
+      <button type="button" class="chip active" @click="clearFilters">
+        Clear filters
+      </button>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>Built with Vue + Vite</p>
+  </footer>
+</template>
+
+
+
+================================================================================
+FILE: src/components/BookCard.vue
+================================================================================
+
+<script setup>
+import { computed } from 'vue'
+
+const props = defineProps({
+  book: {
+    type: Object,
+    required: true,
+  },
+  isRead: {
+    type: Boolean,
+    default: false,
+  },
+})
+
+const emit = defineEmits(['toggle-read'])
+
+const initials = computed(() =>
+  props.book.title
+    .split(' ')
+    .filter((w) => w.length > 0)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join('')
+)
+</script>
+
+<template>
+  <article class="book" :class="{ read: isRead }">
+    <div class="cover" :style="{ background: book.color }">
+      <span class="cover-initials">{{ initials }}</span>
+      <span v-if="isRead" class="badge">Read</span>
+    </div>
+
+    <div class="book-body">
+      <p class="genre">{{ book.genre }}</p>
+      <h2 class="title">{{ book.title }}</h2>
+      <p class="author">{{ book.author }} · {{ book.year }}</p>
+      <p class="summary">{{ book.summary }}</p>
+
+      <div class="book-footer">
+        <span class="pages">{{ book.pages }} pages</span>
+        <button
+          type="button"
+          class="read-btn"
+          :aria-pressed="isRead"
+          @click="emit('toggle-read')"
+        >
+          {{ isRead ? 'Mark unread' : 'Mark as read' }}
+        </button>
+      </div>
+    </div>
+  </article>
+</template>
+
+
+
+================================================================================
+FILE: src/data/books.js
+================================================================================
+
+export const books = [
+  {
+    id: 1,
+    title: 'Things Fall Apart',
+    author: 'Chinua Achebe',
+    year: 1958,
+    genre: 'Literary Fiction',
+    pages: 209,
+    color: 'linear-gradient(135deg, #b45309, #78350f)',
+    summary:
+      'An Igbo village leader struggles with pride and change as colonial rule and missionaries reshape his community.',
+  },
+  {
+    id: 2,
+    title: 'Petals of Blood',
+    author: 'Ngugi wa Thiongo',
+    year: 1977,
+    genre: 'Literary Fiction',
+    pages: 411,
+    color: 'linear-gradient(135deg, #be123c, #7f1d1d)',
+    summary:
+      'Four people in a small Kenyan town are drawn into a murder investigation that exposes life after independence.',
+  },
+  {
+    id: 3,
+    title: 'Nineteen Eighty-Four',
+    author: 'George Orwell',
+    year: 1949,
+    genre: 'Dystopian',
+    pages: 328,
+    color: 'linear-gradient(135deg, #374151, #111827)',
+    summary:
+      'A clerk in a surveillance state quietly rebels against a regime that controls truth, language and memory.',
+  },
+  {
+    id: 4,
+    title: 'Dune',
+    author: 'Frank Herbert',
+    year: 1965,
+    genre: 'Science Fiction',
+    pages: 412,
+    color: 'linear-gradient(135deg, #d97706, #92400e)',
+    summary:
+      'A noble heir is thrown into the politics, ecology and prophecy of a desert planet that supplies a precious resource.',
+  },
+  {
+    id: 5,
+    title: 'The Hobbit',
+    author: 'J.R.R. Tolkien',
+    year: 1937,
+    genre: 'Fantasy',
+    pages: 310,
+    color: 'linear-gradient(135deg, #15803d, #14532d)',
+    summary:
+      'A comfort-loving homebody joins a company of dwarves on a journey to reclaim a treasure guarded by a dragon.',
+  },
+  {
+    id: 6,
+    title: 'Sapiens',
+    author: 'Yuval Noah Harari',
+    year: 2011,
+    genre: 'Non-fiction',
+    pages: 443,
+    color: 'linear-gradient(135deg, #0369a1, #0c4a6e)',
+    summary:
+      'A sweeping look at how humans went from foragers to the builders of empires, money and modern science.',
+  },
+  {
+    id: 7,
+    title: 'Atomic Habits',
+    author: 'James Clear',
+    year: 2018,
+    genre: 'Non-fiction',
+    pages: 320,
+    color: 'linear-gradient(135deg, #7c3aed, #4c1d95)',
+    summary:
+      'A practical guide to building good habits and breaking bad ones through small, consistent changes.',
+  },
+  {
+    id: 8,
+    title: 'Pride and Prejudice',
+    author: 'Jane Austen',
+    year: 1813,
+    genre: 'Classic',
+    pages: 279,
+    color: 'linear-gradient(135deg, #db2777, #831843)',
+    summary:
+      'A sharp-witted young woman and a reserved gentleman misjudge each other in a story of manners and marriage.',
+  },
+  {
+    id: 9,
+    title: 'Foundation',
+    author: 'Isaac Asimov',
+    year: 1951,
+    genre: 'Science Fiction',
+    pages: 255,
+    color: 'linear-gradient(135deg, #0f766e, #134e4a)',
+    summary:
+      'A mathematician predicts the fall of a galactic empire and sets up a plan to shorten the dark age that follows.',
+  },
+]
+
+
+
+================================================================================
+FILE: src/style.css
+================================================================================
+
+:root {
+  --text: #5b5560;
+  --text-h: #1c1917;
+  --bg: #faf7f2;
+  --surface: #ffffff;
+  --border: #e7e2d9;
+  --accent: #b45309;
+  --accent-bg: rgba(180, 83, 9, 0.1);
+  --accent-border: rgba(180, 83, 9, 0.45);
+  --success: #15803d;
+  --shadow: rgba(0, 0, 0, 0.08) 0 8px 20px -6px;
+
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --serif: Georgia, 'Times New Roman', serif;
+
+  font: 16px/150% var(--sans);
+  color-scheme: light dark;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #a8a29e;
+    --text-h: #f5f5f4;
+    --bg: #171412;
+    --surface: #211d1a;
+    --border: #3a332d;
+    --accent: #f59e0b;
+    --accent-bg: rgba(245, 158, 11, 0.12);
+    --accent-border: rgba(245, 158, 11, 0.45);
+    --success: #4ade80;
+    --shadow: rgba(0, 0, 0, 0.4) 0 8px 20px -6px;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+}
+
+#app {
+  width: 1126px;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 16px;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+h1,
+h2 {
+  font-family: var(--serif);
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
+}
+
+/* Header */
+
+.site-header {
+  text-align: center;
+  padding: 48px 0 24px;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.site-header h1 {
+  font-size: 48px;
+  line-height: 110%;
+  margin: 8px 0 12px;
+}
+
+.tagline {
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.stats {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 28px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 20px;
+  min-width: 100px;
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-family: var(--serif);
+  font-size: 26px;
+  color: var(--text-h);
+  line-height: 120%;
+}
+
+.stat-label {
+  font-size: 13px;
+}
+
+/* Controls */
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 0 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.search {
+  width: 100%;
+  font: inherit;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-h);
+}
+
+.search:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.genres {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.chip {
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.chip:hover {
+  border-color: var(--accent-border);
+}
+
+.chip.active {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Shelf */
+
+.shelf {
+  flex-grow: 1;
+  padding: 24px 0 40px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.empty {
+  text-align: center;
+  padding: 48px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Book card */
+
+.book {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.25s, transform 0.25s;
+}
+
+.book:hover {
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+}
+
+.book.read {
+  border-color: var(--success);
+}
+
+.cover {
+  position: relative;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cover-initials {
+  font-family: var(--serif);
+  font-size: 48px;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 2px;
+}
+
+.badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.book-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-grow: 1;
+}
+
+.genre {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.title {
+  font-size: 20px;
+  line-height: 125%;
+  margin: 0;
+}
+
+.author {
+  font-size: 14px;
+}
+
+.summary {
+  font-size: 14px;
+  line-height: 155%;
+  margin-top: 4px;
+  flex-grow: 1;
+}
+
+.book-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.pages {
+  font-size: 13px;
+}
+
+.read-btn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.book.read .read-btn {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text);
+}
+
+/* Footer */
+
+.site-footer {
+  text-align: center;
+  font-size: 13px;
+  padding: 20px 0 28px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 640px) {
+  .site-header {
+    padding-top: 32px;
+  }
+
+  .site-header h1 {
+    font-size: 36px;
+  }
+}
