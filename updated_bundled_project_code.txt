@@ -4,291 +4,276 @@ FILE: src/App.vue
 
 <script setup>
 import { ref, computed } from 'vue'
-import BookCard from './components/BookCard.vue'
-import { books } from './data/books.js'
+import {
+  project,
+  steps,
+  tools,
+  stack,
+  timeline,
+  bundleRules,
+} from './data/project.js'
 
-const search = ref('')
-const activeGenre = ref('All')
-const readIds = ref(new Set())
+const activeStep = ref(0)
 
-const genres = computed(() => {
-  const set = new Set(books.map((b) => b.genre))
-  return ['All', ...Array.from(set).sort()]
-})
+const currentStep = computed(() => steps[activeStep.value])
 
-const filteredBooks = computed(() => {
-  const q = search.value.trim().toLowerCase()
-  return books.filter((b) => {
-    const matchesGenre =
-      activeGenre.value === 'All' || b.genre === activeGenre.value
-    const matchesSearch =
-      q === '' ||
-      b.title.toLowerCase().includes(q) ||
-      b.author.toLowerCase().includes(q)
-    return matchesGenre && matchesSearch
-  })
-})
+const separator = '='.repeat(80)
 
-const readCount = computed(() => readIds.value.size)
-
-const totalPagesRead = computed(() =>
-  books
-    .filter((b) => readIds.value.has(b.id))
-    .reduce((sum, b) => sum + b.pages, 0)
+const sampleBundle = computed(() =>
+  [
+    separator,
+    'FILE: src/App.vue',
+    separator,
+    '',
+    '<script setup> ... full file content ... </scr' + 'ipt>',
+    '',
+    separator,
+    'FILE: src/data/project.js',
+    separator,
+    '',
+    'export const project = { ... }',
+  ].join('\n')
 )
 
-function toggleRead(id) {
-  const next = new Set(readIds.value)
-  if (next.has(id)) {
-    next.delete(id)
-  } else {
-    next.add(id)
-  }
-  readIds.value = next
+function nextStep() {
+  activeStep.value = (activeStep.value + 1) % steps.length
 }
 
-function clearFilters() {
-  search.value = ''
-  activeGenre.value = 'All'
+function prevStep() {
+  activeStep.value = (activeStep.value - 1 + steps.length) % steps.length
 }
 </script>
 
 <template>
   <header class="site-header">
-    <p class="eyebrow">My Reading List</p>
-    <h1>The Bookshelf</h1>
-    <p class="tagline">
-      A small collection of classics and modern favourites. Tap a book to mark
-      it as read.
-    </p>
+    <p class="eyebrow">{{ project.eyebrow }}</p>
+    <h1>{{ project.name }}</h1>
+    <p class="tagline">{{ project.tagline }}</p>
 
     <div class="stats">
       <div class="stat">
-        <span class="stat-value">{{ books.length }}</span>
-        <span class="stat-label">Books</span>
+        <span class="stat-value">{{ steps.length }}</span>
+        <span class="stat-label">Workflow steps</span>
       </div>
       <div class="stat">
-        <span class="stat-value">{{ readCount }}</span>
-        <span class="stat-label">Read</span>
+        <span class="stat-value">{{ tools.length }}</span>
+        <span class="stat-label">Custom tools</span>
       </div>
       <div class="stat">
-        <span class="stat-value">{{ totalPagesRead.toLocaleString() }}</span>
-        <span class="stat-label">Pages read</span>
+        <span class="stat-value">1</span>
+        <span class="stat-label">Phone</span>
       </div>
     </div>
   </header>
 
-  <section class="controls">
-    <input
-      v-model="search"
-      type="search"
-      class="search"
-      placeholder="Search by title or author"
-      aria-label="Search books"
-    />
-    <div class="genres" role="group" aria-label="Filter by genre">
-      <button
-        v-for="genre in genres"
-        :key="genre"
-        type="button"
-        class="chip"
-        :class="{ active: activeGenre === genre }"
-        @click="activeGenre = genre"
-      >
-        {{ genre }}
-      </button>
-    </div>
-  </section>
+  <main class="content">
+    <section class="section">
+      <h2>What this is</h2>
+      <p v-for="(para, i) in project.about" :key="i" class="prose">
+        {{ para }}
+      </p>
+    </section>
 
-  <main class="shelf">
-    <div v-if="filteredBooks.length" class="grid">
-      <BookCard
-        v-for="book in filteredBooks"
-        :key="book.id"
-        :book="book"
-        :is-read="readIds.has(book.id)"
-        @toggle-read="toggleRead(book.id)"
-      />
-    </div>
+    <section class="section">
+      <h2>How it works</h2>
+      <p class="section-intro">
+        Tap a step to see what happens at that stage.
+      </p>
 
-    <div v-else class="empty">
-      <p>No books match your search.</p>
-      <button type="button" class="chip active" @click="clearFilters">
-        Clear filters
-      </button>
-    </div>
+      <ol class="steps">
+        <li v-for="(step, i) in steps" :key="step.title">
+          <button
+            type="button"
+            class="step"
+            :class="{ active: activeStep === i }"
+            :aria-pressed="activeStep === i"
+            @click="activeStep = i"
+          >
+            <span class="step-num">{{ i + 1 }}</span>
+            <span class="step-title">{{ step.title }}</span>
+          </button>
+        </li>
+      </ol>
+
+      <div class="step-detail">
+        <p class="step-where">{{ currentStep.where }}</p>
+        <h3>{{ currentStep.title }}</h3>
+        <p>{{ currentStep.detail }}</p>
+        <div class="step-nav">
+          <button type="button" class="chip" @click="prevStep">Previous</button>
+          <button type="button" class="chip active" @click="nextStep">
+            Next
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>The tools</h2>
+      <div class="grid">
+        <article v-for="tool in tools" :key="tool.name" class="card">
+          <p class="card-tag">{{ tool.tag }}</p>
+          <h3 class="mono">{{ tool.name }}</h3>
+          <p>{{ tool.description }}</p>
+          <p class="card-io">
+            <span class="label">In:</span> <code>{{ tool.input }}</code>
+          </p>
+          <p class="card-io">
+            <span class="label">Out:</span> <code>{{ tool.output }}</code>
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>The bundle format</h2>
+      <p class="section-intro">
+        Every file in a bundle sits under a header like this:
+      </p>
+      <pre class="code-sample">{{ sampleBundle }}</pre>
+      <ul class="rules">
+        <li v-for="rule in bundleRules" :key="rule">{{ rule }}</li>
+      </ul>
+    </section>
+
+    <section class="section">
+      <h2>Built with</h2>
+      <div class="chips">
+        <span v-for="item in stack" :key="item" class="chip static">
+          {{ item }}
+        </span>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Project history</h2>
+      <ol class="timeline">
+        <li v-for="entry in timeline" :key="entry.title" class="timeline-item">
+          <p class="timeline-label">{{ entry.label }}</p>
+          <h3>{{ entry.title }}</h3>
+          <p>{{ entry.detail }}</p>
+        </li>
+      </ol>
+    </section>
   </main>
 
   <footer class="site-footer">
-    <p>Built with Vue + Vite</p>
+    <p>{{ project.footer }}</p>
   </footer>
 </template>
 
 
 
 ================================================================================
-FILE: src/components/BookCard.vue
+FILE: src/data/project.js
 ================================================================================
 
-<script setup>
-import { computed } from 'vue'
+export const project = {
+  eyebrow: 'Mobile dev workflow',
+  name: 'Pocket Dev',
+  tagline:
+    'A Vue + Vite site written, edited and updated entirely from a phone, using Acode and two small Python tools.',
+  about: [
+    'This site is both the project and its own documentation. It is a Vue 3 app built with Vite, and all of its code is written on an Android phone in the Acode editor.',
+    'Instead of copying files back and forth one at a time, the whole src/ folder is packed into a single text file, sent to an AI assistant for changes, and the updated files come back in one text file that is unpacked straight into the project.',
+    'The goal is a simple, repeatable loop: pack, request, unpack, run. No laptop needed.',
+  ],
+  footer: 'Built with Vue + Vite, edited in Acode on a phone',
+}
 
-const props = defineProps({
-  book: {
-    type: Object,
-    required: true,
-  },
-  isRead: {
-    type: Boolean,
-    default: false,
-  },
-})
-
-const emit = defineEmits(['toggle-read'])
-
-const initials = computed(() =>
-  props.book.title
-    .split(' ')
-    .filter((w) => w.length > 0)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join('')
-)
-</script>
-
-<template>
-  <article class="book" :class="{ read: isRead }">
-    <div class="cover" :style="{ background: book.color }">
-      <span class="cover-initials">{{ initials }}</span>
-      <span v-if="isRead" class="badge">Read</span>
-    </div>
-
-    <div class="book-body">
-      <p class="genre">{{ book.genre }}</p>
-      <h2 class="title">{{ book.title }}</h2>
-      <p class="author">{{ book.author }} · {{ book.year }}</p>
-      <p class="summary">{{ book.summary }}</p>
-
-      <div class="book-footer">
-        <span class="pages">{{ book.pages }} pages</span>
-        <button
-          type="button"
-          class="read-btn"
-          :aria-pressed="isRead"
-          @click="emit('toggle-read')"
-        >
-          {{ isRead ? 'Mark unread' : 'Mark as read' }}
-        </button>
-      </div>
-    </div>
-  </article>
-</template>
-
-
-
-================================================================================
-FILE: src/data/books.js
-================================================================================
-
-export const books = [
+export const steps = [
   {
-    id: 1,
-    title: 'Things Fall Apart',
-    author: 'Chinua Achebe',
-    year: 1958,
-    genre: 'Literary Fiction',
-    pages: 209,
-    color: 'linear-gradient(135deg, #b45309, #78350f)',
-    summary:
-      'An Igbo village leader struggles with pride and change as colonial rule and missionaries reshape his community.',
+    title: 'Write code in Acode',
+    where: 'On the phone',
+    detail:
+      'The project lives on the phone and is opened in Acode. All app code sits inside the src/ folder.',
   },
   {
-    id: 2,
-    title: 'Petals of Blood',
-    author: 'Ngugi wa Thiongo',
-    year: 1977,
-    genre: 'Literary Fiction',
-    pages: 411,
-    color: 'linear-gradient(135deg, #be123c, #7f1d1d)',
-    summary:
-      'Four people in a small Kenyan town are drawn into a murder investigation that exposes life after independence.',
+    title: 'Pack with srcpack',
+    where: 'Acode terminal',
+    detail:
+      'Running srcpack collects every readable text file under src/ into bundled_project_code.txt. Binary files such as images and fonts are skipped.',
   },
   {
-    id: 3,
-    title: 'Nineteen Eighty-Four',
-    author: 'George Orwell',
-    year: 1949,
-    genre: 'Dystopian',
-    pages: 328,
-    color: 'linear-gradient(135deg, #374151, #111827)',
-    summary:
-      'A clerk in a surveillance state quietly rebels against a regime that controls truth, language and memory.',
+    title: 'Send to Claude',
+    where: 'Claude Project',
+    detail:
+      'The bundle is attached in a Claude Project along with a description of the change wanted.',
   },
   {
-    id: 4,
-    title: 'Dune',
-    author: 'Frank Herbert',
-    year: 1965,
-    genre: 'Science Fiction',
-    pages: 412,
-    color: 'linear-gradient(135deg, #d97706, #92400e)',
-    summary:
-      'A noble heir is thrown into the politics, ecology and prophecy of a desert planet that supplies a precious resource.',
+    title: 'Get updated files',
+    where: 'Claude Project',
+    detail:
+      'Claude returns updated_bundled_project_code.txt containing only the files it changed or created, each with its complete content.',
   },
   {
-    id: 5,
-    title: 'The Hobbit',
-    author: 'J.R.R. Tolkien',
-    year: 1937,
-    genre: 'Fantasy',
-    pages: 310,
-    color: 'linear-gradient(135deg, #15803d, #14532d)',
-    summary:
-      'A comfort-loving homebody joins a company of dwarves on a journey to reclaim a treasure guarded by a dragon.',
+    title: 'Unpack with srcunpack',
+    where: 'Acode terminal',
+    detail:
+      'Running srcunpack writes each file from the returned bundle back into src/. Files not in the bundle are left untouched.',
   },
   {
-    id: 6,
-    title: 'Sapiens',
-    author: 'Yuval Noah Harari',
-    year: 2011,
-    genre: 'Non-fiction',
-    pages: 443,
-    color: 'linear-gradient(135deg, #0369a1, #0c4a6e)',
-    summary:
-      'A sweeping look at how humans went from foragers to the builders of empires, money and modern science.',
+    title: 'Run and check',
+    where: 'Acode terminal',
+    detail:
+      'The Vite dev server is started and the result is checked in the browser. Then the loop starts again.',
+  },
+]
+
+export const tools = [
+  {
+    name: 'srcpack',
+    tag: 'Python · pack.py',
+    description:
+      'Bundles the project source into one text file that is easy to attach and share.',
+    input: 'src/',
+    output: 'bundled_project_code.txt',
   },
   {
-    id: 7,
-    title: 'Atomic Habits',
-    author: 'James Clear',
-    year: 2018,
-    genre: 'Non-fiction',
-    pages: 320,
-    color: 'linear-gradient(135deg, #7c3aed, #4c1d95)',
-    summary:
-      'A practical guide to building good habits and breaking bad ones through small, consistent changes.',
+    name: 'srcunpack',
+    tag: 'Python · unpack.py',
+    description:
+      'Reads a returned bundle and writes each file back to its path in the project.',
+    input: 'updated_bundled_project_code.txt',
+    output: 'src/',
+  },
+]
+
+export const bundleRules = [
+  'Each separator line is exactly 80 "=" characters.',
+  'One blank line follows the header, then the full file content.',
+  'Paths start with src/ and use forward slashes.',
+  'Returned bundles hold only changed or new files, always complete.',
+  'Deleted files are handled by hand, not through the bundle.',
+]
+
+export const stack = [
+  'Vue 3',
+  'Vite',
+  'Acode',
+  'Python',
+  'Claude Projects',
+  'Android',
+]
+
+export const timeline = [
+  {
+    label: 'Stage 1',
+    title: 'Vite starter',
+    detail:
+      'The project began as the default Vue + Vite starter page with a counter and links.',
   },
   {
-    id: 8,
-    title: 'Pride and Prejudice',
-    author: 'Jane Austen',
-    year: 1813,
-    genre: 'Classic',
-    pages: 279,
-    color: 'linear-gradient(135deg, #db2777, #831843)',
-    summary:
-      'A sharp-witted young woman and a reserved gentleman misjudge each other in a story of manners and marriage.',
+    label: 'Stage 2',
+    title: 'The Bookshelf',
+    detail:
+      'The starter was replaced with a reading list: searchable books, genre filters and a read tracker.',
   },
   {
-    id: 9,
-    title: 'Foundation',
-    author: 'Isaac Asimov',
-    year: 1951,
-    genre: 'Science Fiction',
-    pages: 255,
-    color: 'linear-gradient(135deg, #0f766e, #134e4a)',
-    summary:
-      'A mathematician predicts the fall of a galactic empire and sets up a plan to shorten the dark age that follows.',
+    label: 'Stage 3',
+    title: 'Pocket Dev',
+    detail:
+      'The site now describes itself: the phone-only workflow and the tools behind it.',
   },
 ]
 
@@ -299,21 +284,22 @@ FILE: src/style.css
 ================================================================================
 
 :root {
-  --text: #5b5560;
-  --text-h: #1c1917;
-  --bg: #faf7f2;
+  --text: #55606e;
+  --text-h: #0f172a;
+  --bg: #f6f8fb;
   --surface: #ffffff;
-  --border: #e7e2d9;
-  --accent: #b45309;
-  --accent-bg: rgba(180, 83, 9, 0.1);
-  --accent-border: rgba(180, 83, 9, 0.45);
-  --success: #15803d;
+  --border: #e2e8f0;
+  --code-bg: #0f172a;
+  --code-text: #e2e8f0;
+  --accent: #0d9488;
+  --accent-bg: rgba(13, 148, 136, 0.1);
+  --accent-border: rgba(13, 148, 136, 0.45);
   --shadow: rgba(0, 0, 0, 0.08) 0 8px 20px -6px;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --serif: Georgia, 'Times New Roman', serif;
+  --mono: ui-monospace, Consolas, monospace;
 
-  font: 16px/150% var(--sans);
+  font: 16px/155% var(--sans);
   color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
@@ -323,15 +309,16 @@ FILE: src/style.css
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #a8a29e;
-    --text-h: #f5f5f4;
-    --bg: #171412;
-    --surface: #211d1a;
-    --border: #3a332d;
-    --accent: #f59e0b;
-    --accent-bg: rgba(245, 158, 11, 0.12);
-    --accent-border: rgba(245, 158, 11, 0.45);
-    --success: #4ade80;
+    --text: #94a3b8;
+    --text-h: #f1f5f9;
+    --bg: #0b1120;
+    --surface: #131c2e;
+    --border: #243049;
+    --code-bg: #050913;
+    --code-text: #cbd5e1;
+    --accent: #2dd4bf;
+    --accent-bg: rgba(45, 212, 191, 0.12);
+    --accent-border: rgba(45, 212, 191, 0.45);
     --shadow: rgba(0, 0, 0, 0.4) 0 8px 20px -6px;
   }
 }
@@ -348,7 +335,7 @@ body {
 }
 
 #app {
-  width: 1126px;
+  width: 960px;
   max-width: 100%;
   margin: 0 auto;
   padding: 0 16px;
@@ -358,39 +345,55 @@ body {
 }
 
 h1,
-h2 {
-  font-family: var(--serif);
+h2,
+h3 {
   color: var(--text-h);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 p {
   margin: 0;
 }
 
+code {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  padding: 2px 6px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+
+.mono {
+  font-family: var(--mono);
+}
+
 /* Header */
 
 .site-header {
   text-align: center;
-  padding: 48px 0 24px;
+  padding: 48px 0 32px;
+  border-bottom: 1px solid var(--border);
 }
 
 .eyebrow {
   text-transform: uppercase;
   letter-spacing: 2px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--accent);
 }
 
 .site-header h1 {
   font-size: 48px;
   line-height: 110%;
+  letter-spacing: -1px;
   margin: 8px 0 12px;
 }
 
 .tagline {
-  max-width: 520px;
+  max-width: 560px;
   margin: 0 auto;
 }
 
@@ -407,14 +410,14 @@ p {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px 20px;
-  min-width: 100px;
+  min-width: 110px;
   display: flex;
   flex-direction: column;
 }
 
 .stat-value {
-  font-family: var(--serif);
   font-size: 26px;
+  font-weight: 700;
   color: var(--text-h);
   line-height: 120%;
 }
@@ -423,36 +426,186 @@ p {
   font-size: 13px;
 }
 
-/* Controls */
+/* Sections */
 
-.controls {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 16px 0 24px;
+.content {
+  flex-grow: 1;
+  padding-bottom: 40px;
+}
+
+.section {
+  padding: 36px 0;
   border-bottom: 1px solid var(--border);
 }
 
-.search {
+.section:last-child {
+  border-bottom: none;
+}
+
+.section h2 {
+  font-size: 26px;
+  margin: 0 0 14px;
+}
+
+.section h3 {
+  font-size: 18px;
+  margin: 4px 0 8px;
+}
+
+.section-intro {
+  margin-bottom: 16px;
+}
+
+.prose + .prose {
+  margin-top: 12px;
+}
+
+/* Steps */
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.step {
   width: 100%;
   font: inherit;
-  padding: 12px 16px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-h);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
 }
 
-.search:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+.step:hover {
+  border-color: var(--accent-border);
 }
 
-.genres {
+.step.active {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.step-num {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--accent);
+  color: #fff;
+}
+
+.step-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.step-detail {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.step-where {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.step-nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Cards */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: box-shadow 0.25s;
+}
+
+.card:hover {
+  box-shadow: var(--shadow);
+}
+
+.card-tag {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.card-io {
+  font-size: 14px;
+}
+
+.label {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+/* Bundle sample */
+
+.code-sample {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 150%;
+  background: var(--code-bg);
+  color: var(--code-text);
+  padding: 16px;
+  border-radius: 12px;
+  overflow-x: auto;
+  margin: 0 0 16px;
+}
+
+.rules {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.rules li + li {
+  margin-top: 6px;
+}
+
+/* Chips */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .chip {
@@ -478,138 +631,46 @@ p {
   font-weight: 600;
 }
 
-/* Shelf */
-
-.shelf {
-  flex-grow: 1;
-  padding: 24px 0 40px;
+.chip.static {
+  cursor: default;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 20px;
+/* Timeline */
+
+.timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-left: 2px solid var(--border);
 }
 
-.empty {
-  text-align: center;
-  padding: 48px 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-
-/* Book card */
-
-.book {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  transition: box-shadow 0.25s, transform 0.25s;
-}
-
-.book:hover {
-  box-shadow: var(--shadow);
-  transform: translateY(-2px);
-}
-
-.book.read {
-  border-color: var(--success);
-}
-
-.cover {
+.timeline-item {
   position: relative;
-  height: 140px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 0 0 24px 20px;
 }
 
-.cover-initials {
-  font-family: var(--serif);
-  font-size: 48px;
-  color: rgba(255, 255, 255, 0.9);
-  letter-spacing: 2px;
+.timeline-item:last-child {
+  padding-bottom: 0;
 }
 
-.badge {
+.timeline-item::before {
+  content: '';
   position: absolute;
-  top: 10px;
-  right: 10px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #15803d;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 2px 10px;
-  border-radius: 999px;
+  left: -7px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
 }
 
-.book-body {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex-grow: 1;
-}
-
-.genre {
+.timeline-label {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 1px;
+  font-weight: 700;
   color: var(--accent);
-  font-weight: 600;
-}
-
-.title {
-  font-size: 20px;
-  line-height: 125%;
-  margin: 0;
-}
-
-.author {
-  font-size: 14px;
-}
-
-.summary {
-  font-size: 14px;
-  line-height: 155%;
-  margin-top: 4px;
-  flex-grow: 1;
-}
-
-.book-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-.pages {
-  font-size: 13px;
-}
-
-.read-btn {
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--accent-border);
-  background: var(--accent-bg);
-  color: var(--accent);
-  cursor: pointer;
-}
-
-.book.read .read-btn {
-  border-color: var(--border);
-  background: transparent;
-  color: var(--text);
 }
 
 /* Footer */
@@ -628,5 +689,9 @@ p {
 
   .site-header h1 {
     font-size: 36px;
+  }
+
+  .section h2 {
+    font-size: 22px;
   }
 }
